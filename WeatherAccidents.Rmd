@@ -1,0 +1,36 @@
+---
+title: "Weather&Accidents"
+author: "Kobi Ocran"
+date: "9/20/2020"
+output: html_document
+---
+
+```{r}
+### download necessary packages
+
+library(dplyr)
+```
+
+```{r}
+setwd("~/Desktop/DASem/Datasets/Road Safety")
+
+USaccidents <-  read.csv("US_Accidents_June20.csv") #read in the USaccidents dataset
+
+
+Midstates <- c("IL", "IN", "IA", "KS","MI", "MN", "MO", "NE", "ND", "OH", "SD", "WI") #identify the midwestern states 
+
+Midaccidents <- filter(USaccidents, State %in% Midstates) #filter the midwest states from the master dataset (USaccidents) and create a new dataset with only Midwest states
+
+
+
+
+
+
+
+
+
+  
+  
+```
+
+
