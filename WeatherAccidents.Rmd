@@ -9,28 +9,78 @@ output: html_document
 ### download necessary packages
 
 library(dplyr)
+
+library(ggplot2)
+
+library(stringr)
 ```
 
 ```{r}
 setwd("~/Desktop/DASem/Datasets/Road Safety")
 
-USaccidents <-  read.csv("US_Accidents_June20.csv") #read in the USaccidents dataset
+USaccidents <-  read.csv("US_Accidents_June20.csv")#read in the USaccidents dataset
+
+
+#USaccidents$Weather_Timestamp <- strptime(x = as.character(USaccidents$Weather_Timestamp),
+                                          #format = "%d/%m/%y %H:%M")
+  
+USaccidents$Date <- format(as.Date(USaccidents$Weather_Timestamp, "%m/%d/%y"), "%Y-%m-%d")#convert DateTime to Date
+
+USaccidents$Year <- format(as.Date(USaccidents$Date, format = "%Y-%m-%d"), "%Y") #extract the year only (The master dataset does not seem to have data for 2018 - possible limitation)
 
 
 Midstates <- c("IL", "IN", "IA", "KS","MI", "MN", "MO", "NE", "ND", "OH", "SD", "WI") #identify the midwestern states 
 
 Midaccidents <- filter(USaccidents, State %in% Midstates) #filter the midwest states from the master dataset (USaccidents) and create a new dataset with only Midwest states
-
-
-
-
-
-
-
-
-
-  
-  
 ```
 
+
+```{r}
+
+# Let us consider the case for Ohio
+
+# Let us identify the road types
+
+# The use of "I", "Ave", "St", "Rd", "Dr", "Outerbelt", "Hwy", "State Route", "Pike", "Highway", "Innerbelt", "Blvd", "Expy", "MI-39 N"
+
+OHaccidents <- filter(USaccidents, State == "OH") #filter accident cases in ohio
+
+# Let us identify the road types ()
+
+# E.g "I", "Ave", "St", "Rd", "Dr", "Outerbelt", "Hwy", "State Route", "Pike", "Highway", "Innerbelt", "Blvd", "Expy", "MI-39 N"
+
+OHaccidents <- OHaccidents %>%
+  mutate(Road_Type = case_when(grepl('I-|Hwy|State Route|Highway|Expy',Street) ~ 'High-Speed',grepl('Ave|St|Rd|Dr|Blvd',Street) ~ 'Local', TRUE ~ 'Other'))
+
+# identify whether the accident instances happend on a high-speed road (highways, interstates and state roads) or local roads/ low speed (street, avenues, boulevards)
+
+```
+
+```{r}
+# Let us explore the visbility levels for each road type
+
+OHaccidents %>%
+  filter(is.na(Visibility.mi.) == FALSE) %>%
+  select(Visibility.mi.,Road_Type) %>%
+  group_by(Road_Type) %>%
+  summarize(mean_visibility = mean(Visibility.mi.)) %>% 
+  ggplot(aes(Road_Type, mean_visibility, fill = Road_Type)) +
+  geom_col()
+
+```
+
+```{r}
+### Let us explore visibility across a midwestern states (from 2016 to 2020)
+
+
+
+p <- Midaccidents %>%
+   filter(is.na(Visibility.mi.) == FALSE) %>% 
+   select(Visibility.mi., Year, State)
+
+p$Year <- as.Date(p$Year)
+
+p %>% ggplot(aes(x = Year, y = Visibility.mi.))+
+  geom_line()
+```
 
