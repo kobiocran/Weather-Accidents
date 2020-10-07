@@ -13,27 +13,382 @@ library(dplyr)
 library(ggplot2)
 
 library(stringr)
+
+library(gridExtra) # to create table
+
+library(grid) # to create table 
+
+library(nnet) # for Multinomial Logistic Regression
 ```
 
 ```{r}
-setwd("~/Desktop/DASem/Datasets/Road Safety")
+# setwd("~/Desktop/DASem/Weather-Accidents")
+# 
+# USaccidents <-  read.csv("US_Accidents_June20.csv") #read in the US accidents dataset
 
-USaccidents <-  read.csv("US_Accidents_June20.csv")#read in the USaccidents dataset
+#save the large dataset in an RDS file
 
+#saveRDS(USaccidents, file = "~/Desktop/DASem/Weather-Accidents/USaccidents.RDS")
 
-#USaccidents$Weather_Timestamp <- strptime(x = as.character(USaccidents$Weather_Timestamp),
-                                          #format = "%d/%m/%y %H:%M")
+USaccidents <- readRDS("~/Desktop/DASem/Weather-Accidents/USaccidents.RDS")
+
   
-USaccidents$Date <- format(as.Date(USaccidents$Weather_Timestamp, "%m/%d/%y"), "%Y-%m-%d")#convert DateTime to Date
+USaccidents$Date <- format(as.Date(USaccidents$Weather_Timestamp, "%Y-%m-%d"), "%Y-%m-%d") #convert DateTime to Date
 
-USaccidents$Year <- format(as.Date(USaccidents$Date, format = "%Y-%m-%d"), "%Y") #extract the year only (The master dataset does not seem to have data for 2018 - possible limitation)
+USaccidents$Year <- format(as.Date(USaccidents$Weather_Timestamp, format = "%Y-%m-%d"), "%Y") #extract the year only (The master dataset does not seem to have data for 2018 - possible limitation)
 
-
-Midstates <- c("IL", "IN", "IA", "KS","MI", "MN", "MO", "NE", "ND", "OH", "SD", "WI") #identify the midwestern states 
-
-Midaccidents <- filter(USaccidents, State %in% Midstates) #filter the midwest states from the master dataset (USaccidents) and create a new dataset with only Midwest states
 ```
 
+
+```{r}
+# identify nas in dataframe  
+
+na_count <- sapply(USaccidents, function(y) sum(length(which(is.na(y)))))
+
+#Weather_Timestamp with nas also have NAS for weather characteristics 
+
+USaccidents <- USaccidents %>%
+  filter(Weather_Timestamp != "")  #exclude empty Weather_Timestamp observations
+
+na_count1 <- sapply(USaccidents, function(y) sum(length(which(is.na(y)))))
+
+# explore distribution of variables,  helps identify outliers , helps to see if they follow a normal distribution 
+
+
+#create a function to display histogram for independent variables 
+
+create_hist = function(variable, colour){ 
+  USaccidents %>% 
+  ggplot(aes(x = variable)) +
+  geom_histogram(bins = 30, col = colour) + 
+  labs(title = "Histogram") + # try to add variable as part of title 
+  theme(plot.title = element_text(hjust = 0.5))
+}
+
+```
+
+
+```{r}
+# visibility 
+
+create_hist(USaccidents$Visibility.mi., 'blue')
+
+```
+
+
+```{r}
+summary(USaccidents$Visibility.mi.)
+```
+
+
+```{r}
+# precipitation 
+
+create_hist(USaccidents$Precipitation.in., 'red')
+```
+
+
+```{r}
+summary(USaccidents$Precipitation.in.)
+```
+
+
+```{r}
+# wind speed 
+
+create_hist(USaccidents$Wind_Speed.mph., 'green')
+```
+
+
+```{r}
+summary(USaccidents$Wind_Speed.mph.)
+```
+
+```{r}
+# pressure 
+create_hist(USaccidents$Pressure.in., 'orange')
+```
+
+```{r}
+summary(USaccidents$Pressure.in.)
+```
+
+```{r}
+# Wind_Chill 
+
+create_hist(USaccidents$Wind_Chill.F., 'salmon2')
+```
+
+
+```{r}
+summary(USaccidents$Wind_Chill.F.)
+```
+
+```{r}
+# Temperature 
+
+create_hist(USaccidents$Temperature.F., 'plum')
+
+```
+
+
+```{r}
+summary(USaccidents$Temperature.F)
+```
+
+```{r}
+#Distance
+
+create_hist(USaccidents$Distance.mi., 'violet')
+```
+
+```{r}
+summary(USaccidents$Distance.mi.)
+```
+```{r}
+
+Midstates <- c("IL", "IN", "IA", "KS","MI", "MN", "MO", "NE", "ND", "OH", "SD", "WI") # identify the Midwestern states 
+
+MWaccidents <- filter(USaccidents, State %in% Midstates) # filter the midwest states from the master dataset (USaccidents) and create a new dataset with only Midwest states 
+
+# create to_csv for Tableau 
+
+write.csv(MWaccidents, "~/Desktop/DASem/Weather-Accidents/MWaccidents.csv", row.names = FALSE)
+```
+
+```{r}
+# Let Severity be the Dependent Variable,
+
+# Let visibility, precipitation, temperature, wind_chill, wind_speed, distance, pressure, weather condition (rain, snow, thunderstorm) and humidity. 
+
+# Severity scales based on different sources. The cases should be separated by each source (MapQuest & Bing). 
+
+
+MQ <- MWaccidents %>%
+  filter(Source == "MapQuest")  #create a table to capture accident cases from the Mapquest source (995627 observations)
+
+MQ_Bing <- MWaccidents %>%
+  filter(Source == "MapQuest-Bing") #create a table to capture accident cases from the MapQuest - Bing source. Reported by both (indistinguishable and perhaps a possible limitation of the study)
+
+```
+
+```{r}
+# table under development 
+d <- head(USaccidents[,1:2])
+
+grid.table(d)
+```
+
+
+```{r}
+
+# create dummy variables for each Weather_Condition (group them and classify) and for Twilight variables. Observation: A lot of confounding variables. 
+
+# weather data for Mapquest
+MQdata <- MQ %>%
+  select(Severity, Visibility.mi., Precipitation.in., Temperature.F., Wind_Chill.F., Wind_Speed.mph.,
+         Pressure.in.,Weather_Condition, Humidity..., Sunrise_Sunset, Civil_Twilight, Nautical_Twilight, Astronomical_Twilight)
+
+#weather data for Mapquest_Bing
+MQ_Bingdata <- MQ_Bing %>%
+  select(Severity, Visibility.mi., Precipitation.in., Temperature.F., Wind_Chill.F., Wind_Speed.mph.,
+         Pressure.in.,Weather_Condition, Humidity..., Sunrise_Sunset, Civil_Twilight, Nautical_Twilight, Astronomical_Twilight)
+
+# Run a stepwise regression to observe significance of variables
+
+```
+
+
+
+```{r}
+
+#filter non-continous 
+
+MQdata <- MQdata %>%
+  select(-Weather_Condition, -Sunrise_Sunset, -Civil_Twilight, -Nautical_Twilight, -Astronomical_Twilight)
+
+
+MQ_Bingdata<- MQ_Bingdata %>%
+  select(-Weather_Condition, -Sunrise_Sunset, -Civil_Twilight, -Nautical_Twilight, -Astronomical_Twilight)
+# Multinomial Logistic Regression analysis (Mapquestdata)
+
+# Data Partition 
+
+set.seed(222)
+
+ind <- sample(2, nrow(MQdata),
+              replace = TRUE,
+              prob = c(0.6,0.4)) #60% / 40% data split 
+
+trainMQ <- MQdata[ind == 1, ]
+
+testMQ <- MQdata[ind == 2, ]
+
+
+#trainMQ$Severity <- relevel(trainMQ$Severity, ref = "1") #pick a reference level
+
+
+
+mymodel1 <- multinom(Severity ~ Precipitation.in. + Pressure.in., data = trainMQ) #exclude non-continuous variables 
+
+
+# change variables to appropriate datatype 
+
+
+#USaccidents$Severity <- as.factor(USaccidents$Severity) # convert Severity from int to factor(1,2,3,4)
+
+#USaccidents$Humidity... <- as.numeric((USaccidents$Humidity...)/100) #convert from percent to numeric (only run once!)
+
+```
+
+
+```{r}
+summary(mymodel1)
+```
+
+The log odds
+
+E.g For Humidity, The log odds that the accident instance is of category 2 compared to category 1 is negative. There is a negative impact on that. 
+
+
+```{r}
+
+# 2-tailed Z - test
+
+z_test1 <- summary(mymodel1)$coefficients/summary(mymodel1)$standard.errors
+
+p1 <- (1-pnorm(abs(z_test1),0, 1)) * 2
+
+p1
+```
+
+The statistically significant variables: Precipitation.in., Pressure.in.
+
+```{r}
+
+### RUN EACH SEPERATELY TO OBTAIN RESULTS 
+
+# Confusion Matrix & Misclassification Error - Training Data
+
+pred_train <- predict(mymodel1, trainMQ)
+
+table1 <- table(pred_train, trainMQ$Severity)
+
+table1
+
+#Accuracy Rate
+
+accuracy1 <- sum(diag(table1))/sum(table1)
+
+accuracy1
+
+# Confusion Matrix & Misclassification Error - Test Data
+
+pred_test <- predict(mymodel1, testMQ)
+
+table2 <- table(pred_test, testMQ$Severity)
+
+table2
+
+accuracy2 <- sum(diag(table2))/sum(table2)
+
+accuracy2
+
+# Prediction and Model Assessment 
+
+n1 <- table(trainMQ$Severity)
+
+n1/sum(n1)
+
+table1/colSums(table1)
+
+table2/colSums(table2)
+
+
+```
+
+- Possible Limitations: Dominance of one class 
+
+
+
+```{r}
+
+# Multinomial Logistic Regression analysis (Mapquest-Bing data)
+
+# Data Partition 
+
+set.seed(222)
+
+ind <- sample(2, nrow(MQ_Bingdata),
+              replace = TRUE,
+              prob = c(0.6,0.4)) #60% / 40% data split 
+
+trainMQ_Bing <- MQ_Bingdata[ind == 1, ]
+
+testMQ_Bing <- MQ_Bingdata[ind == 2, ]
+
+
+#trainMQ_Bing$Severity <- relevel(trainMQ_Bing$Severity, ref = "1") #pick a reference level
+
+mymodel2 <- multinom(Severity ~ Pressure.in., data = trainMQ_Bing) #exclude no continuous variables 
+
+
+```
+
+
+```{r}
+summary(mymodel2)
+```
+
+
+
+
+```{r}
+
+# 2-tailed Z - test
+
+z_test2 <- summary(mymodel2)$coefficients/summary(mymodel2)$standard.errors
+
+p2 <- (1-pnorm(abs(z_test2),0, 1)) * 2
+
+p2
+
+```
+
+The statistically significant variables: Pressure.in. 
+
+
+
+```{r}
+
+
+# Confusion Matrix & Misclassification Error - Training Data
+
+pred_train2 <- predict(mymodel2, trainMQ_Bing)
+
+table1b <- table(pred_train2, trainMQ_Bing$Severity)
+
+table1b
+
+#Accuracy Rate
+
+accuracy1b <- sum(diag(table1b))/sum(table1b)
+
+accuracy1b
+
+# Confusion Matrix & Misclassification Error - Test Data
+
+pred_test2 <- predict(mymodel2, testMQ_Bing)
+
+table2b <- table(pred_test2, testMQ_Bing$Severity)
+
+table2b
+
+accuracy2b <- sum(diag(table2b))/sum(table2b)
+
+accuracy2b
+
+```
 
 ```{r}
 
@@ -59,28 +414,34 @@ OHaccidents <- OHaccidents %>%
 ```{r}
 # Let us explore the visbility levels for each road type
 
-OHaccidents %>%
+a <- OHaccidents %>%
   filter(is.na(Visibility.mi.) == FALSE) %>%
   select(Visibility.mi.,Road_Type) %>%
   group_by(Road_Type) %>%
-  summarize(mean_visibility = mean(Visibility.mi.)) %>% 
-  ggplot(aes(Road_Type, mean_visibility, fill = Road_Type)) +
+  dplyr:: summarize(mean_visibility = mean(Visibility.mi.)) 
+  
+ a + ggplot(aes(Road_Type, mean_visibility, fill = Road_Type)) +
   geom_col()
 
 ```
 
 ```{r}
-### Let us explore visibility across a midwestern states (from 2016 to 2020)
+### Let us explore visibility patterns across a midwestern states (from 2016 to 2020)
 
 
 
 p <- Midaccidents %>%
-   filter(is.na(Visibility.mi.) == FALSE) %>% 
-   select(Visibility.mi., Year, State)
+  filter(is.na(Visibility.mi.) == FALSE) %>% 
+  select(Visibility.mi.,Weather_Timestamp, Year, State) %>%
+  group_by(Year, State) %>%
+  summarize(mean_visibility = mean(Visibility.mi.))
+  
 
-p$Year <- as.Date(p$Year)
 
-p %>% ggplot(aes(x = Year, y = Visibility.mi.))+
-  geom_line()
+p %>% ggplot(aes(x = Year, y = mean_visibility, group = State)) +
+  geom_line(size = 1, linetype = 1, aes(colour = State)) + 
+  geom_point()
+  
 ```
 
+There seems to be some downward trends in visibility perhaps indicating that weather has gotten worse over the years. North Dakota only has data from 2019 to 2020. May consider filtering the state out.
