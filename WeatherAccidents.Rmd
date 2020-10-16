@@ -10,15 +10,12 @@ output: html_document
 
 library(dplyr)
 
-library(ggplot2)
-
 library(stringr)
 
 library(nnet)# for Multinomial Logistic Regression
 
 #library(rms)
 
-library(MASS)
 
 ```
 
@@ -156,6 +153,9 @@ USaccidents <- USaccidents %>%
 ```{r}
 summary(USaccidents$Wind_Chill.F.)
 
+sum(is.na(USaccidents$Wind_Chill.F.)) / nrow(USaccidents)
+
+
 
 ```
 
@@ -240,9 +240,9 @@ MQ_Bing <- MWaccidents %>%
 
 
 
-saveRDS(MQ, file = "~/Desktop/DASem/Weather-Accidents/MQ.RDS") #save the large dataset in an RDS file
+#saveRDS(MQ, file = "~/Desktop/DASem/Weather-Accidents/MQ.RDS") #save the large dataset in an RDS file
 
-#MQ <- readRDS("~/Desktop/DASem/Weather-Accidents/MQ.RDS")
+MQ <- readRDS("~/Desktop/DASem/Weather-Accidents/MQ.RDS")
 
 ```
 
@@ -270,9 +270,9 @@ MQ_Bingdata <- MQ_Bing %>%
   select(Severity, Visibility.mi. , Temperature.F., Wind_Chill.F., Wind_Speed.mph.,
          Pressure.in.,Weather_Condition, Humidity..., Sunrise_Sunset, Civil_Twilight, Nautical_Twilight, Astronomical_Twilight)
 
-saveRDS(MQdata, file = "~/Desktop/DASem/Weather-Accidents/MQdata.RDS") #save the large dataset in an RDS file
+#saveRDS(MQdata, file = "~/Desktop/DASem/Weather-Accidents/MQdata.RDS") #save the large dataset in an RDS file
 
-#MQdata <- readRDS("~/Desktop/DASem/Weather-Accidents/MQdata.RDS")
+MQdata <- readRDS("~/Desktop/DASem/Weather-Accidents/MQdata.RDS")
 
 
 library(ggfortify)
@@ -412,6 +412,8 @@ MQdata <- MQdata %>%
   mutate(Severity_1 = case_when(grepl('1|2',Severity) ~ 0, TRUE ~ 1)) # 1: 1.52 ratio 
 
 MQdata$Severity_1 <- as.factor(MQdata$Severity_1)
+
+table(MQdata$Severity_1)
 
 na_count2 <- sapply(MQdata, function(y) sum(length(which(is.na(y)))))
 
@@ -566,7 +568,9 @@ c1 <- MWaccidents %>%
 
 c1 %>% ggplot(aes(x = Year, y = mean_visibility, group = State)) +
   geom_line(size = 1, linetype = 1, aes(colour = State)) + 
-  geom_point()
+  geom_point() +
+  labs(title = "Visibility over Time in North & South Dakota") + # try to add variable as part of title 
+  theme(plot.title = element_text(hjust = 0.5))
 ```
 
 
